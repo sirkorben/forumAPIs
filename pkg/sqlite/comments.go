@@ -12,7 +12,7 @@ func InsertComment(postID int, content string, userId int) error {
 }
 
 func GetCommentsByPostId(postID int) ([]*models.Comment, error) {
-	rows, err := DB.Query("select id,content,user_id from comments where post_id = ?", postID)
+	rows, err := DB.Query("select id, content, user_id from comments where post_id = ?", postID)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func GetCommentsByPostId(postID int) ([]*models.Comment, error) {
 		if err != nil {
 			return nil, err
 		}
-		c.User, err = GetUserForPostInfo(c.User.Id)
+		c.User, err = GetUsernameById(c.User.Id)
 		if err != nil {
 			return nil, err
 		}

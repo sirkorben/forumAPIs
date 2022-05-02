@@ -16,7 +16,6 @@ func DataBase() {
 
 	DB = db
 
-	// PS! changed User struct in models.go
 	const CREATE = `
 	create table users(	
 		id INTEGER not null primary key autoincrement,
@@ -27,13 +26,13 @@ func DataBase() {
 		username TEXT not null unique,
 		email TEXT not null unique, 
 		password BLOB not null, 
-		created_date TEXT not null );
+		creation_date INTEGER not null );
 
 	create table posts(
 		id INTEGER not null primary key autoincrement,
 		title TEXT not null,
 		contents TEXT not null, 
-		create_date TEXT not null, 
+		creation_date INTEGER not null, 
 		user_id INTEGER not null );
 
 	create table posts_categories(
@@ -71,13 +70,15 @@ func DataBase() {
 	create table sessions(
 		id TEXT not null primary key, 
 		user_id INTEGER not null unique, 
-		created_date TEXT not null);
+		created_date INTEGER not null);
+		
+
 	`
 
 	const INSERT = `
-	INSERT INTO posts (id, title, contents, create_date, user_id) VALUES (1, 'Cats are cool!', 'Dogs are same', '2022-02-07 22:11:45', 1);
-	INSERT INTO posts (id, title, contents, create_date, user_id) VALUES (2, 'Porsche', 'Fast, rich car originally from Italy', '2022-02-07 22:09:45', 1);
-	INSERT INTO posts (id, title, contents, create_date, user_id) VALUES (3, 'API', 'Work in progress, trying hard', '2022-02-07 22:13:45', 1);
+	INSERT INTO posts (id, title, contents, creation_date, user_id) VALUES (1, 'Cats are cool!', 'Dogs are same', strftime('%s','now'), 1);
+	INSERT INTO posts (id, title, contents, creation_date, user_id) VALUES (2, 'Porsche', 'Fast, rich car originally from Italy', strftime('%s','now'), 2);
+	INSERT INTO posts (id, title, contents, creation_date, user_id) VALUES (3, 'API', 'Work in progress, trying hard', strftime('%s','now'), 3);
 
 	INSERT INTO categories (id, name) VALUES (1, 'Cars');
 	INSERT INTO categories (id, name) VALUES (2, 'Animals');
@@ -104,3 +105,25 @@ func DataBase() {
 		log.Fatal(err)
 	}
 }
+
+/*
+
+	INSERT INTO messages (id, from_user_id, to_user_ID, content, dialogue_id, created_date) VALUES (1, 1, 2, 'Hello, Tester!', 1, strftime('%s','now'));
+	INSERT INTO messages (id, from_user_id, to_user_ID, content, dialogue_id, created_date) VALUES (2, 2, 1, 'Bonjorno, Admin!', 1, strftime('%s','now')+1);
+	INSERT INTO messages (id, from_user_id, to_user_ID, content, dialogue_id, created_date) VALUES (3, 3, 1, 'Tervist, Admin!', 2, strftime('%s','now')+2);
+
+	create table messages(
+		id INTEGER not null primary key autoincrement,
+		content TEXT not null,
+		dialogue_id INTEGER not null,
+		from_user_id INTEGER not null,
+		to_user_id INTEGER not null,
+		created_date INTEGER not null);
+
+	create table dialogues(
+		id INTEGER primary key autoincrement,
+		dialogue_user_one INTEGER not null,
+		dialogue_user_two INTEGER not null,
+		created_date INTEGER not null);
+
+*/

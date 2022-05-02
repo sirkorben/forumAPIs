@@ -9,33 +9,36 @@ var (
 	ErrInvalidCredentials = errors.New("models: invalid credentials")
 	ErrDuplicateEmail     = errors.New("models: duplicate email")
 	ErrDuplicateUsername  = errors.New("models: duplicate username")
+	ErrTooManySpaces      = errors.New("inupt data: too many spaces in field")
+	InternalServerError   = errors.New("INTERNAL_SERVER_ERROR")
 )
 
 type Post struct {
-	Id               int         `json:"-"`
-	Title            string      `json:"title"`
-	Content          string      `json:"content"`
-	CreateDate       string      `json:"creationdate"`
-	Categories       []*Category `json:"categories"`
-	User             *User       `json:"user"`
-	Likes            []*User     `json:"likes"`
-	Dislikes         []*User     `json:"dislikes"`
-	Comments         []*Comment  `json:"comments"`
+	Id               int         `json:"id,omitempty"`
+	Title            string      `json:"title,omitempty"`
+	Content          string      `json:"content,omitempty"`
+	CreationDate     int         `json:"creation_date,omitempty"`
+	Categories       []*Category `json:"categories,omitempty"`
+	User             *User       `json:"user,omitempty"`
+	Likes            []*User     `json:"likes,omitempty"`
+	Dislikes         []*User     `json:"dislikes,omitempty"`
+	Comments         []*Comment  `json:"comments,omitempty"`
 	IsLikedByUser    bool        `json:"-"`
 	IsDislikedByUser bool        `json:"-"`
 }
 
 type User struct {
-	Id             int    `json:"-"`
-	FirstName      string `json:"firstname"`
-	LastName       string `json:"lastname"`
-	Age            int    `json:"age"`
-	Gender         string `json:"gender"`
-	Username       string `json:"username"`
-	Email          string `json:"email"`
-	Password       string `json:"password"`
+	Id             int    `json:"id,omitempty"`
+	FirstName      string `json:"firstname,omitempty"`
+	LastName       string `json:"lastname,omitempty"`
+	Age            int    `json:"age,omitempty"`
+	Gender         string `json:"gender,omitempty"`
+	Username       string `json:"username,omitempty"`
+	Email          string `json:"email,omitempty"`
+	Password       string `json:"password,omitempty"`
 	HashedPassword []byte `json:"-"`
-	Created        string `json:"-"`
+	CreationDate   int    `json:"creation_date,omitempty"` // do we need it in user profile?
+	// Is_Active      bool		`json:"is_active"`   // for showing user online?
 }
 
 type Session struct {
@@ -64,4 +67,11 @@ type PostReaction struct {
 type Category struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
+}
+
+type Message struct {
+	Id           int    `json:"post_id,omitempty"`
+	ToFromUser   int    `json:"to_from_user,omitempty"`
+	Content      string `json:"content"`
+	CreationDate int    `json:"creation_date"`
 }

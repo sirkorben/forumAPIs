@@ -28,9 +28,24 @@ var UnauthorizedErrorMsg = ErrorMsg{
 	ErrorDescription: "Restricted, becouse of non authorization",
 	ErrorType:        "UNAUTHORIZED_ERROR",
 }
+var EmptyCategoryErrorMsg = ErrorMsg{
+	ErrorDescription: "Category is empty",
+	ErrorType:        "EMPTY_CATEGORY",
+}
+
+var EmptyChatErrorMsg = ErrorMsg{
+	ErrorDescription: "NO_STARTED_CHATS",
+	ErrorType:        "EMPTY_CHATS",
+}
+
+func enableCors(w *http.ResponseWriter) {
+	// https://www.stackhawk.com/blog/golang-cors-guide-what-it-is-and-how-to-enable-it/
+	(*w).Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1:5500") // address for live server
+}
 
 func home(w http.ResponseWriter, r *http.Request) {
 	// will be used to serve opportunity to signin or signup
+	enableCors(&w)
 	if r.URL.Path != "/" {
 		errorResponse(w, NotFoundErrorMsg, http.StatusBadRequest)
 		return
@@ -38,6 +53,7 @@ func home(w http.ResponseWriter, r *http.Request) {
 }
 
 func createPost(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	s, err := sqlite.CheckSession(r)
 	if err != nil {
 		log.Println(err.Error())
@@ -78,6 +94,7 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func categories(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	_, err := sqlite.CheckSession(r)
 	if err != nil {
 		log.Println(err.Error())
@@ -99,6 +116,7 @@ func categories(w http.ResponseWriter, r *http.Request) {
 }
 
 func postsByCategoryId(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	_, err := sqlite.CheckSession(r)
 	if err != nil {
 		log.Println(err.Error())
@@ -112,7 +130,12 @@ func postsByCategoryId(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := sqlite.GetPostsByCategory(catId)
 	if err != nil {
-		errorResponse(w, internalErrorMsg, http.StatusInternalServerError)
+		if errors.Is(err, models.ErrNoRecord) {
+			//  choose http response status for no posts under category????
+			errorResponse(w, EmptyCategoryErrorMsg, http.StatusBadRequest)
+		} else {
+			errorResponse(w, internalErrorMsg, http.StatusInternalServerError)
+		}
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -125,6 +148,8 @@ func postsByCategoryId(w http.ResponseWriter, r *http.Request) {
 }
 
 func post(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+
 	user := &models.User{
 		Id: -1,
 	}
@@ -138,6 +163,10 @@ func post(w http.ResponseWriter, r *http.Request) {
 
 	}
 	url := strings.Split(strings.Trim(r.URL.Path, "/"), "/") // /post/1/ -> [post, 1]
+	if len(url) == 1 {
+		errorResponse(w, NotFoundErrorMsg, http.StatusBadRequest)
+		return
+	}
 	postId, err := strconv.Atoi(url[1])
 	if err != nil {
 		errorResponse(w, NotFoundErrorMsg, http.StatusBadRequest)
@@ -182,6 +211,7 @@ func post(w http.ResponseWriter, r *http.Request) {
 }
 
 func posts(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	_, err := sqlite.CheckSession(r)
 	if err != nil {
 		log.Println(err.Error())
@@ -206,6 +236,7 @@ func posts(w http.ResponseWriter, r *http.Request) {
 
 func postById(w http.ResponseWriter, r *http.Request, postId int) {
 	//auth check do not needed here, it`s being checked upper in post function
+	enableCors(&w)
 	if postId < 1 {
 		errorResponse(w, NotFoundErrorMsg, http.StatusBadRequest)
 		return
@@ -231,6 +262,7 @@ func postById(w http.ResponseWriter, r *http.Request, postId int) {
 }
 
 func signUp(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	if r.Method == http.MethodPost {
 		var u models.User
 		err := decodeJSONBody(w, r, &u)
@@ -244,13 +276,19 @@ func signUp(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		if validateUserData(w, u) {
+		if validateUserData(w, &u) {
 			err := sqlite.InsertUser(u)
 			if err != nil {
 				var errMsg ErrorMsg
 				if errors.Is(err, models.ErrDuplicateUsername) {
 					errMsg.ErrorDescription = "Username already taken."
 					errMsg.ErrorType = "USERNAME_ALREADY_TAKEN"
+					errorResponse(w, errMsg, http.StatusUnsupportedMediaType)
+					return
+				}
+				if errors.Is(err, models.ErrTooManySpaces) {
+					errMsg.ErrorDescription = "too many spaces"
+					errMsg.ErrorType = "DOUBLE_SPACES_IF_FIELDS"
 					errorResponse(w, errMsg, http.StatusUnsupportedMediaType)
 					return
 				}
@@ -270,6 +308,7 @@ func signUp(w http.ResponseWriter, r *http.Request) {
 }
 
 func signIn(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	if r.Method == http.MethodPost {
 		var u models.User
 		err := decodeJSONBody(w, r, &u)
@@ -321,6 +360,7 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 }
 
 func signOut(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	s, err := sqlite.CheckSession(r)
 	if err != nil {
 		log.Println(err.Error())
@@ -341,7 +381,8 @@ func signOut(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func myProfile(w http.ResponseWriter, r *http.Request) {
+func getMyProfile(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	s, err := sqlite.CheckSession(r)
 	if err != nil {
 		log.Println(err.Error())
@@ -370,8 +411,8 @@ func myProfile(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResp)
 }
 
-// for checking other forum users profiles
-func otherUserProfile(w http.ResponseWriter, r *http.Request) {
+func getOtherUserProfile(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	_, err := sqlite.CheckSession(r)
 	if err != nil {
 		log.Println(err.Error())
@@ -407,9 +448,109 @@ func otherUserProfile(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResp)
 }
 
-func SomeHandler(w http.ResponseWriter, r *http.Request) {
-	// data := SomeStruct{}
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusCreated)
-	// json.NewEncoder(w).Encode(data)
+func chatHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	s, err := sqlite.CheckSession(r)
+	if err != nil {
+		log.Println(err.Error())
+		errorResponse(w, UnauthorizedErrorMsg, http.StatusUnauthorized)
+		return
+	}
+
+	url := strings.Split(strings.Trim(r.URL.Path, "/"), "/") // /post/1/ -> [post, 1]
+	if len(url) == 1 && url[0] == "chat" {
+		getAllUserChats(w, r)
+		return
+	}
+	if len(url) == 2 {
+		chatPersonId, err := strconv.Atoi(url[1])
+		if err != nil {
+			errorResponse(w, NotFoundErrorMsg, http.StatusBadRequest)
+			return
+		}
+		// show chat window with userId
+		// show all messages for now later will be only 10 ??
+		getChatWithUser(w, r, s.User.Id, chatPersonId)
+		return
+	}
+
+	if r.Method == http.MethodPost && url[2] == "message" {
+		var message models.Message
+		err := decodeJSONBody(w, r, &message)
+		if err != nil {
+			var errMsg *ErrorMsg
+			if errors.As(err, &errMsg) {
+				errorResponse(w, *errMsg, http.StatusBadRequest)
+			} else {
+				log.Println(err.Error())
+				errorResponse(w, internalErrorMsg, http.StatusInternalServerError)
+			}
+			return
+		}
+		if validateUserMessage(w, &message) {
+			recevierId, err := strconv.Atoi(url[1])
+			if err != nil {
+				errorResponse(w, NotFoundErrorMsg, http.StatusBadRequest)
+				return
+			}
+			err = sqlite.SendMessage(message.Content, s.User.Id, recevierId)
+			if err != nil {
+				log.Println("sqlite.SendMessage()", err)
+				errorResponse(w, internalErrorMsg, http.StatusInternalServerError)
+			}
+		}
+	}
+}
+
+func getAllUserChats(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	s, err := sqlite.CheckSession(r)
+	if err != nil {
+		log.Println(err.Error())
+		errorResponse(w, UnauthorizedErrorMsg, http.StatusUnauthorized)
+
+		return
+	}
+	usersChattedWIth, err := sqlite.GetAllChats(s.User.Id)
+	if err != nil {
+		// if no chats started what to response? and choose what status?
+		errorResponse(w, EmptyChatErrorMsg, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	jsonResp, err := json.Marshal(usersChattedWIth)
+	if err != nil {
+		log.Fatalf("Error happened in JSON marshal. Err: %s", err)
+		errorResponse(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	w.Write(jsonResp)
+}
+
+func getChatWithUser(w http.ResponseWriter, r *http.Request, userId, chatPersonId int) {
+	enableCors(&w)
+	if chatPersonId < 1 {
+		errorResponse(w, NotFoundErrorMsg, http.StatusBadRequest)
+		return
+	}
+	messages, err := sqlite.GetChatWithUser(userId, chatPersonId)
+	if err != nil {
+		log.Println("sqlite.GetChatWithUser()", err)
+		if errors.Is(err, models.ErrNoRecord) {
+			var errMsg ErrorMsg
+			errMsg.ErrorDescription = "Messages not found"
+			errMsg.ErrorType = "STATUS_BAD_REQUEST"
+			errorResponse(w, errMsg, http.StatusBadRequest)
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	jsonResp, err := json.Marshal(messages)
+	if err != nil {
+		log.Fatalf("Error happened in JSON marshal. Err: %s", err)
+		errorResponse(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	w.Write(jsonResp)
 }

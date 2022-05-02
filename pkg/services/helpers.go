@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/mail"
+	"regexp"
 	"strings"
 )
 
@@ -68,80 +69,69 @@ func errorResponse(w http.ResponseWriter, errMessage ErrorMsg, httpStatusCode in
 	w.Write(jsonResp)
 }
 
-func validateUserData(w http.ResponseWriter, user models.User) bool {
+func validateUserData(w http.ResponseWriter, user *models.User) bool {
+	var errMsg ErrorMsg
+	space := regexp.MustCompile(`\s+`)
+	user.FirstName = space.ReplaceAllString(strings.TrimSpace(user.FirstName), " ")
+	user.LastName = space.ReplaceAllString(strings.TrimSpace(user.LastName), " ")
+	user.Username = space.ReplaceAllString(user.Username, "")
+	user.Email = space.ReplaceAllString(strings.TrimSpace(user.Email), "")
 
-	firstName := strings.TrimSpace(user.FirstName)
-	lastName := strings.TrimSpace(user.LastName)
-	age := user.Age
-	gender := user.Gender
-	userName := strings.TrimSpace(user.Username)
-	email := strings.TrimSpace(user.Email)
-	password := user.Password
-
-	if firstName == "" {
-		var errMsg ErrorMsg
+	if user.FirstName == "" {
 		errMsg.ErrorDescription = "Firstname is missing."
 		errMsg.ErrorType = "FIRSTNAME_FIELD_EMPTY"
 		errorResponse(w, errMsg, http.StatusBadRequest)
 		return false
 	}
-	if lastName == "" {
-		var errMsg ErrorMsg
+	if user.LastName == "" {
 		errMsg.ErrorDescription = "Lastname is missing."
 		errMsg.ErrorType = "LASTNAME_FIELD_EMPTY"
 		errorResponse(w, errMsg, http.StatusBadRequest)
 		return false
 	}
-	if userName == "" {
-		var errMsg ErrorMsg
+	if user.Username == "" {
 		errMsg.ErrorDescription = "Username is missing."
 		errMsg.ErrorType = "USERNAME_FIELD_EMPTY"
 		errorResponse(w, errMsg, http.StatusBadRequest)
 		return false
 	}
-	if email == "" {
-		var errMsg ErrorMsg
+	if user.Email == "" {
 		errMsg.ErrorDescription = "Email is missing."
 		errMsg.ErrorType = "EMAIL_FIELD_EMPTY"
 		errorResponse(w, errMsg, http.StatusBadRequest)
 		return false
 	}
 
-	if gender == "" {
-		var errMsg ErrorMsg
+	if user.Gender == "" {
 		errMsg.ErrorDescription = "Gender is missing."
 		errMsg.ErrorType = "GENDER_FIELD_EMPTY"
 		errorResponse(w, errMsg, http.StatusBadRequest)
 		return false
 	}
 
-	if password == "" {
-		var errMsg ErrorMsg
+	if user.Password == "" {
 		errMsg.ErrorDescription = "Password is missing."
 		errMsg.ErrorType = "PASSWORD_FIELD_EMPTY"
 		errorResponse(w, errMsg, http.StatusBadRequest)
 		return false
 	}
 
-	if len(password) < 6 || len(password) > 20 {
-		var errMsg ErrorMsg
+	if len(user.Password) < 6 || len(user.Password) > 20 {
 		errMsg.ErrorDescription = "Password is too short - 6 chars min."
 		errMsg.ErrorType = "PASSWORD_TOO_SHORT"
 		errorResponse(w, errMsg, http.StatusNotAcceptable)
 		return false
 	}
 
-	if age <= 0 || age > 120 {
-		var errMsg ErrorMsg
+	if user.Age <= 0 || user.Age > 120 {
 		errMsg.ErrorDescription = "Age is not valid"
 		errMsg.ErrorType = "AGE_NOT_VALID"
 		errorResponse(w, errMsg, http.StatusNotAcceptable)
 		return false
 	}
 
-	_, errMail := mail.ParseAddress(email)
+	_, errMail := mail.ParseAddress(user.Email)
 	if errMail != nil {
-		var errMsg ErrorMsg
 		errMsg.ErrorDescription = "Email is not valid"
 		errMsg.ErrorType = "EMAIL_INVALID"
 		errorResponse(w, errMsg, http.StatusNotAcceptable)
@@ -165,6 +155,20 @@ func validateUserPostData(w http.ResponseWriter, post models.Post) bool {
 			errMsg.ErrorType = "CONTENT_FIELD_EMPTY"
 
 		}
+		errorResponse(w, errMsg, http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+func validateUserMessage(w http.ResponseWriter, message *models.Message) bool {
+	space := regexp.MustCompile(`\s+`)
+	message.Content = space.ReplaceAllString(strings.TrimSpace(message.Content), " ")
+	fmt.Println(message.Content)
+	if message.Content == "" {
+		var errMsg ErrorMsg
+		errMsg.ErrorDescription = "Content field is empty"
+		errMsg.ErrorType = "CONTENT_FIELD_EMPTY"
 		errorResponse(w, errMsg, http.StatusBadRequest)
 		return false
 	}

@@ -9,25 +9,23 @@ import (
 )
 
 func GetPosts() ([]*models.Post, error) {
-	rows, err := DB.Query("select id, title, contents, create_date, user_id from Posts order by id desc")
+	rows, err := DB.Query("select id, title, contents, creation_date, user_id from Posts order by id desc")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	var posts []*models.Post
-
 	for rows.Next() {
 		post := &models.Post{}
 		post.Categories = []*models.Category{}
 		post.User = &models.User{}
-		err = rows.Scan(&post.Id, &post.Title, &post.Content, &post.CreateDate, &post.User.Id)
+		err = rows.Scan(&post.Id, &post.Title, &post.Content, &post.CreationDate, &post.User.Id)
 		if err != nil {
 			return nil, err
 		}
-		post.User, err = GetUserForPostInfo(post.User.Id)
+		post.User, err = GetUsernameById(post.User.Id)
 		if err != nil {
-			fmt.Println(err)
 			return nil, err
 		}
 		post.Categories, err = GetCategoriesByPost(post.Id)
@@ -39,7 +37,12 @@ func GetPosts() ([]*models.Post, error) {
 	if err != nil {
 		return nil, err
 	}
-	return posts, nil
+	if len(posts) > 0 {
+		return posts, nil
+
+	} else {
+		return nil, models.ErrNoRecord
+	}
 }
 
 func GetPostById(id int) (*models.Post, error) {
@@ -47,8 +50,8 @@ func GetPostById(id int) (*models.Post, error) {
 	post.Categories = []*models.Category{}
 	post.User = &models.User{}
 
-	row := DB.QueryRow("select id, title, contents, create_date, user_id from Posts where id = ?", id)
-	err := row.Scan(&post.Id, &post.Title, &post.Content, &post.CreateDate, &post.User.Id)
+	row := DB.QueryRow("select id, title, contents, creation_date, user_id from Posts where id = ?", id)
+	err := row.Scan(&post.Id, &post.Title, &post.Content, &post.CreationDate, &post.User.Id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, models.ErrNoRecord
@@ -60,8 +63,7 @@ func GetPostById(id int) (*models.Post, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	post.User, err = GetUserForPostInfo(post.User.Id)
+	post.User, err = GetUsernameById(post.User.Id)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -95,20 +97,16 @@ func GetPostsByCategory(catID int) ([]*models.Post, error) {
 	defer rows.Close()
 
 	var posts []*models.Post
-
 	for rows.Next() {
 		post := &models.Post{}
-
 		err := rows.Scan(&post.Id)
 		if err != nil {
 			return nil, err
 		}
-
 		post, err = GetPostById(post.Id)
 		if err != nil {
 			return nil, err
 		}
-
 		posts = append(posts, post)
 	}
 	sort.Slice(posts, func(i, j int) bool {
@@ -118,12 +116,15 @@ func GetPostsByCategory(catID int) ([]*models.Post, error) {
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
-
-	return posts, nil
+	if len(posts) > 0 {
+		return posts, nil
+	} else {
+		return nil, models.ErrNoRecord
+	}
 }
 
 func InsertPost(title, contents string, categories []string, userId int) (int, error) {
-	result, err := DB.Exec("insert into posts (title, contents, create_date, user_id) values (?, ?, DATETIME('now', 'localtime'), ?)", title, contents, userId)
+	result, err := DB.Exec("insert into posts (title, contents, creation_date, user_id) values (?, ?, strftime('%s','now'), ?)", title, contents, userId)
 	if err != nil {
 		return -1, err
 	}
@@ -136,16 +137,13 @@ func InsertPost(title, contents string, categories []string, userId int) (int, e
 		row := DB.QueryRow("select id from categories where name = ?", catName)
 		var catId int
 		err := row.Scan(&catId)
-
+		if err != nil {
+			return -1, err
+		}
 		_, err = DB.Exec("insert into posts_categories (post_id, category_id) values (?,?);", postId, catId)
 		if err != nil {
 			return -1, err
 		}
-
-		if err != nil {
-			return -1, err
-		}
 	}
-
 	return int(postId), nil
 }

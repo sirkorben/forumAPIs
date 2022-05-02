@@ -3,7 +3,6 @@ package sqlite
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"forumAPIs/pkg/models"
 	"log"
 
@@ -18,7 +17,6 @@ func InsertUser(user models.User) error {
 	userName := user.Username
 	email := user.Email
 	password := user.Password
-
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
 		return err
@@ -36,15 +34,13 @@ func InsertUser(user models.User) error {
 		return models.ErrDuplicateEmail
 	}
 
-	_, err = DB.Exec("insert into users (firstname, lastname, age, gender, username, email, password, created_date) values (?,?,?,?,?,?,?, DATE())",
+	_, err = DB.Exec("insert into users (firstname, lastname, age, gender, username, email, password, creation_date) values (?,?,?,?,?,?,?, strftime('%s','now'))",
 		firstName, lastName, age, gender, userName, email, string(hashedPassword))
 	if err != nil {
-		fmt.Println("error with inserting user into DB")
+		log.Println("sqlite.InsertUser()", err)
 		return err
 	}
-
 	return nil
-
 }
 
 func Authenticate(credName, password string) (int, error) {
@@ -71,29 +67,10 @@ func Authenticate(credName, password string) (int, error) {
 	return id, nil
 }
 
-// func GetUser(id int) (*models.User, error) {
-// 	row := DB.QueryRow("select id, username, email, created_date from users where id = ?", id)
-
-// 	s := &models.User{}
-
-// 	err := row.Scan(&s.Id, &s.Username, &s.Email, &s.Created)
-// 	if err != nil {
-// 		if errors.Is(err, sql.ErrNoRows) {
-// 			return nil, models.ErrNoRecord
-// 		} else {
-// 			return nil, err
-// 		}
-// 	}
-// 	return s, nil
-// }
-
-// done for more full info about user...
 func GetUserProfile(id int) (*models.User, error) {
-	row := DB.QueryRow("select firstname, lastname, age, gender, username, email, created_date from users where id = ?", id)
-
+	row := DB.QueryRow("select firstname, lastname, age, gender, username, email, creation_date from users where id = ?", id)
 	u := &models.User{}
-
-	err := row.Scan(&u.FirstName, &u.LastName, &u.Age, &u.Gender, &u.Username, &u.Email, &u.Created)
+	err := row.Scan(&u.FirstName, &u.LastName, &u.Age, &u.Gender, &u.Username, &u.Email, &u.CreationDate)
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -105,12 +82,10 @@ func GetUserProfile(id int) (*models.User, error) {
 	return u, nil
 }
 
-func GetUserForPostInfo(id int) (*models.User, error) {
-	row := DB.QueryRow("select id, username, created_date from users where id = ?", id)
-
-	s := &models.User{}
-
-	err := row.Scan(&s.Id, &s.Username, &s.Created)
+func GetUsernameById(id int) (*models.User, error) {
+	row := DB.QueryRow("select id, username from users where id = ?", id)
+	u := &models.User{}
+	err := row.Scan(&u.Id, &u.Username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, models.ErrNoRecord
@@ -118,5 +93,5 @@ func GetUserForPostInfo(id int) (*models.User, error) {
 			return nil, err
 		}
 	}
-	return s, nil
+	return u, nil
 }

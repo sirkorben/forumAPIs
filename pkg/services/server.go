@@ -25,6 +25,7 @@ func Server() {
 	}
 
 	sqlite.DataBase()
+	defer sqlite.DB.Close()
 
 	infoLog.Printf("Starting server on http://localhost%s", *addr)
 	err := srv.ListenAndServe()
@@ -33,6 +34,10 @@ func Server() {
 
 func routes() *http.ServeMux {
 	mux := http.NewServeMux()
+	// fs := http.FileServer(http.Dir("./views/"))
+	// mux.Handle("/", http.StripPrefix("", fs))
+	mux.HandleFunc("/ws", webSocket)
+
 	mux.HandleFunc("/", home)
 	mux.HandleFunc("/post/", post) // --> /post/{id} /post/{id}/comment /post/{id}/like /post/{id}/dislike
 	mux.HandleFunc("/post/all", posts)
@@ -42,7 +47,8 @@ func routes() *http.ServeMux {
 	mux.HandleFunc("/signup", signUp)
 	mux.HandleFunc("/signin", signIn)
 	mux.HandleFunc("/signout", signOut)
-	mux.HandleFunc("/me", myProfile)
-	mux.HandleFunc("/user/", otherUserProfile)
+	mux.HandleFunc("/me", getMyProfile)
+	mux.HandleFunc("/user/", getOtherUserProfile)
+	mux.HandleFunc("/chat/", chatHandler) // /chat   /chat/{userID}    /chat/{userId}/message
 	return mux
 }
